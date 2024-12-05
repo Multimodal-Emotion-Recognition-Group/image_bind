@@ -106,9 +106,7 @@ class ImageBindTrain(L.LightningModule):
         return [optimizer], [lr_scheduler]
 
     def info_nce_loss(self, batch, mode="train"):
-        # TODO: implement arbitrary num of modalities (need at leas third for audio),
-        #  I guess this implementation has InfoNce only for two)
-        data_a, class_a, data_b, class_b, _, _, _, _ = batch
+        data_a, class_a, data_b, class_b= batch
 
         # class_a is always "vision" according to ImageBind
         feats_a = [self.model({class_a[0]: data_a_i}) for data_a_i in data_a]
@@ -209,8 +207,8 @@ def parse_args():
     parser.add_argument("--loggers_dir", type=str, default="./.logs", help="Directory to save the logs")
     parser.add_argument("--headless", action="store_true", help="Run in headless mode (Don't plot samples on start)")
 
-    parser.add_argument("--max_epochs", type=int, default=500, help="Maximum number of epochs to train")
-    parser.add_argument("--batch_size", type=int, default=12, help="Batch size for training and validation")
+    parser.add_argument("--max_epochs", type=int, default=100, help="Maximum number of epochs to train")
+    parser.add_argument("--batch_size", type=int, default=6, help="Batch size for training and validation")
     parser.add_argument("--lr", type=float, default=5e-6, help="Learning rate")
     parser.add_argument("--weight_decay", type=float, default=1e-4, help="Weight decay")
     parser.add_argument("--momentum_betas", nargs=2, type=float, default=[0.9, 0.95],
@@ -244,11 +242,19 @@ def parse_args():
 
     parser.add_argument("--linear_probing", action="store_true",
                         help="Freeze model and train the last layers of the head for each modality.")
+    parser.set_defaults(linear_probing=True, lora=False)
+    #parser.set_defaults(linear_probing=False, lora=True)
 
     return parser.parse_args()
 
 
 if __name__ == "__main__":
+    # little hack
+    import gc
+
+    torch.cuda.empty_cache()
+    gc.collect()
+
     args = parse_args()
 
     # Create loggers
@@ -321,18 +327,15 @@ if __name__ == "__main__":
             transform=ContrastiveTransformations(contrast_transforms,
                                                  n_views=2 if args.self_contrast else 1)))
 
-    # btw train and test splits seem broken
-    # (VideoFileClip not reading some .mp4, also a ton of .mp4 that has no audio)
-    # the only split that seems fine is dev
-    # train for now has 500 audio, dev 1100
+    # lot's of data (esp. in train and test) don't have audio in .mp4 videos,
+    # so audio modality isn't used in MELD for now
     elif "MELD" in args.datasets:
         from datasets.meld import MeldDataset
 
-        train_datasets.append(
-            MeldDataset('../MELD.Raw/dev/dev_sent_emo.csv', split='dev', shuffle=True, arbitrary_size=0.5))
-        test_datasets.append(MeldDataset('../MELD.Raw/dev/dev_sent_emo.csv', split='dev', arbitrary_size=0.1))
-
-
+        train_datasets.append(MeldDataset('../MELD.Raw/train/train_sent_emo.csv', split='train', get_audio=False,
+                                          shuffle=True, arbitrary_size=0.05, device=device))
+        test_datasets.append(MeldDataset('../MELD.Raw/dev/dev_sent_emo.csv', split='dev', get_audio=False,
+                                         arbitrary_size=0.1, device=device))
 
     if len(args.datasets) == 1:
         train_dataset = train_datasets[0]
@@ -385,6 +388,7 @@ if __name__ == "__main__":
             lora_modality_names.append(modality_type)
         else:
             raise ValueError(f"Unknown modality name: {modality_name}")
+
 
     # Train dataset
     model = ImageBindTrain(max_epochs=args.max_epochs, batch_size=args.batch_size, lr=args.lr,

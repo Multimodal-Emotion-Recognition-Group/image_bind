@@ -19,13 +19,13 @@ from lora__impl__.models.imagebind_model import ModalityType
 
 
 class MeldDataset(Dataset):
-    def __init__(self, csv_path: str, transform: Optional[Callable] = None,
-                 split = 'train', arbitrary_size = 1.0, shuffle=False, seed=59, device: str = 'cpu'):
+    def __init__(self, csv_path, split = 'train', for_testing=False, get_audio=False, arbitrary_size = 1.0, shuffle=False, seed=59, device: str = 'cpu'):
 
         self.csv_path = csv_path
-        self.transform = transform
         self.device = device
         self.seed = seed
+        self.get_audio = get_audio
+        self.for_testing = for_testing
 
         self.classes = sorted(get_unique_classes(csv_path))
         self.class_to_idx = {cls: idx for idx, cls in enumerate(self.classes)}
@@ -41,36 +41,44 @@ class MeldDataset(Dataset):
         # arbitrary_size allows change target size of split
         if split == 'train':
             vids_path = '/'.join(self.csv_path.split('/')[:-1]) + '/train_splits'
-            wavs_path = '/'.join(self.csv_path.split('/')[:-1]) + '/train_wavs'
-            self.train_paths = create_dataset_split(self.csv_path, vids_path, wavs_path)
+            #wavs_path = '/'.join(self.csv_path.split('/')[:-1]) + '/train_wavs'
+            self.train_paths = create_dataset_split(self.csv_path, vids_path)
             if shuffle: random.Random(self.seed).shuffle(self.train_paths)
             self.split_paths = self.train_paths[:int(len(self.train_paths)*arbitrary_size)]
 
         elif split == 'dev':
             vids_path = '/'.join(self.csv_path.split('/')[:-1]) + '/dev_splits'
-            wavs_path = '/'.join(self.csv_path.split('/')[:-1]) + '/dev_wavs'
-            self.dev_paths = create_dataset_split(self.csv_path, vids_path, wavs_path)
+            #wavs_path = '/'.join(self.csv_path.split('/')[:-1]) + '/dev_wavs'
+            self.dev_paths = create_dataset_split(self.csv_path, vids_path)
             if shuffle: random.Random(self.seed).shuffle(self.dev_paths)
             self.split_paths = self.dev_paths[:int(len(self.dev_paths)*arbitrary_size)]
 
         elif split == 'test':
             vids_path = '/'.join(self.csv_path.split('/')[:-1]) + '/test_splits'
-            wavs_path = '/'.join(self.csv_path.split('/')[:-1]) + '/test_wavs'
-            self.test_paths = create_dataset_split(self.csv_path, vids_path, wavs_path)
+            #wavs_path = '/'.join(self.csv_path.split('/')[:-1]) + '/test_wavs'
+            self.test_paths = create_dataset_split(self.csv_path, vids_path)
             if shuffle: random.Random(self.seed).shuffle(self.test_paths)
             self.split_paths = self.test_paths[:int(len(self.test_paths)*arbitrary_size)]
         else:
             raise ValueError(f"Invalid split argument. Expected 'train' or 'test', got {split}")
 
     def __getitem__(self, index):
-        text, videop, audiop, label = self.split_paths[index]
+        text, videop, label = self.split_paths[index]
 
-        text_tkn = lora__impl__.data.load_and_transform_text([text], self.device)
-        images = lora__impl__.data.load_and_transform_video_data([videop], self.device)
-        mel_spt = lora__impl__.data.load_and_transform_audio_data([audiop], self.device)
-        label_tkn = lora__impl__.data.load_and_transform_text([label], self.device)
+        if not self.for_testing:
+            text_tkn = lora__impl__.data.load_and_transform_text([label + ': ' + text], self.device)
+        else:
+            text_tkn = lora__impl__.data.load_and_transform_text([text], self.device)
 
-        return images, ModalityType.VISION, text_tkn, ModalityType.TEXT, mel_spt, ModalityType.AUDIO, label_tkn, ModalityType.TEXT
+        images = lora__impl__.data.load_and_transform_video_data([videop], self.device, clip_duration=2, clips_per_video=3)
+
+        # mel_spt = lora__impl__.data.load_and_transform_audio_data([audiop], self.device)
+        #label_tkn = lora__impl__.data.load_and_transform_text([label], self.device)
+
+        # modality_combinations = [[images, ModalityType.VISION, text_tkn, ModalityType.TEXT],
+        #                          [images, ModalityType.VISION, label_tkn, ModalityType.TEXT]]
+
+        return images, ModalityType.VISION, text_tkn, ModalityType.TEXT
 
     def __len__(self):
         return len(self.split_paths)
@@ -138,7 +146,7 @@ def get_wav_from_mp4(video_path, out_dir):
     video.audio.write_audiofile(output_path, codec='pcm_s16le', fps=16000)
     return output_path
 
-def create_dataset_split(csv_path, videos_path, wavs_path):
+def create_dataset_split(csv_path, videos_path, wavs_path=None, get_audio=False):
     df = pd.read_csv(csv_path)
     label_encoder = LabelEncoder()
 
@@ -166,10 +174,13 @@ def create_dataset_split(csv_path, videos_path, wavs_path):
             if not utt_row.empty:
                 true_label = utt_row['Emotion'].values[0]
                 video_path = v_path
-                audio_data_path = get_wav_from_mp4(v_path, wavs_path)
                 text_data = utt_row['Utterance'].values[0]
 
-                Xy.append([text_data, video_path, audio_data_path, true_label])
+                if get_audio:
+                    audio_data_path = get_wav_from_mp4(v_path, wavs_path)
+                    Xy.append([text_data, video_path, audio_data_path, true_label])
+                else:
+                    Xy.append([text_data, video_path, true_label])
             else:
                 print(f'{video_file} has empty row in dataframe')
 
@@ -179,22 +190,3 @@ def create_dataset_split(csv_path, videos_path, wavs_path):
 
     return Xy
 
-if __name__ =='__main__':
-    # example of .mp4 that seems fine but can't be read by VideoFileClip
-    # video = VideoFileClip('../../MELD.Raw/train/train_splits/dia103_utt5.mp4')
-    
-    # train_csv_path = '../../MELD.Raw/dev/dev_sent_emo.csv'
-    # videos_path = '../../MELD.Raw/dev/dev_splits'
-    # wavs_path = '../../MELD.Raw/dev/dev_wavs'
-    # Xy = create_dataset_split(train_csv_path, videos_path, wavs_path)
-
-
-    train_datasets = []
-    test_datasets = []
-    #train_datasets.append(MeldDataset('../../MELD.Raw/train/train_sent_emo.csv', split='train'))
-    train_datasets.append(MeldDataset('../../MELD.Raw/dev/dev_sent_emo.csv', split='dev', shuffle=True, arbitrary_size=0.5))
-    test_datasets.append(MeldDataset('../../MELD.Raw/dev/dev_sent_emo.csv', split='dev', arbitrary_size=0.1))
-
-    emb_ex = test_datasets[0][0]
-    print(emb_ex)
-    print()
