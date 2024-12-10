@@ -1,4 +1,7 @@
 import logging
+from cProfile import label
+
+import numpy as np
 import torch
 import data
 
@@ -26,9 +29,14 @@ if __name__ == '__main__':
         lora_factor = 1
 
 
-    test_dataset = MeldDataset(csv_path='../MELD.Raw/test/test_sent_emo.csv', split='test', for_testing=True, get_audio=False,
-                               arbitrary_size=0.1, device=device)
+    # test_dataset = MeldDataset(csv_path='../MELD.Raw/test/test_sent_emo.csv', split='test', for_testing=True, get_audio=False,
+    #                            arbitrary_size=0.1, device=device)
+    test_dataset = MeldDataset(csv_path='../MELD.Raw/dev/dev_sent_emo.csv', split='dev', for_testing=True,
+                               get_audio=False, arbitrary_size=0.1, device=device)
+
     emotion_labels = test_dataset.classes
+    id2label = {k: v for k, v in enumerate(emotion_labels)}
+    label2id = {v: k for k, v in enumerate(emotion_labels)}
 
     # Instantiate model
     model = imagebind_model.imagebind_huge(pretrained=True)
@@ -60,24 +68,35 @@ if __name__ == '__main__':
     for i in range(len(test_dataset)):
         # Load data
 
-        images_a, images_class, text_b, text_class = test_dataset[i]
-        # getting rid of 'emotion' label
-        # text_b is e.g. 'emotion_label: utterance_text.'
-        vision_x_label_inputs = {
-            images_class: images_a,
-            text_class: text_b,
-        }
-        utt_x_label_inputs = {
+        images_a, images_class, text_b, text_class, true_label = test_dataset[i]
+        labels_tokens = data.load_and_transform_text(emotion_labels, device)
 
+        inputs = {
+            ModalityType.TEXT: torch.cat((labels_tokens, text_b), dim=0),
+            ModalityType.VISION: images_a
         }
 
         with torch.no_grad():
             embeddings = model(inputs)
 
-        print(
-            "Vision x Text: ",
-            torch.softmax(embeddings[images_class] @ embeddings[text_class].T * (lora_factor if lora else 1), dim=-1),
-        )
+        text_embeddings = embeddings[ModalityType.TEXT]
+        vision_embeddings = embeddings[ModalityType.VISION]
 
-        break
+        emotion_embeddings = text_embeddings[:len(emotion_labels), :]
+        utterance_embedding = text_embeddings[len(emotion_labels), :].unsqueeze(0)  # [1, D]
+
+        text_similarities = (utterance_embedding @ emotion_embeddings.T) * (lora_factor if lora else 1)
+        probabilities = torch.softmax(text_similarities, dim=-1).squeeze().cpu().numpy()
+        pred_label = id2label[np.argmax(probabilities)]
+
+        vision_similarities = (vision_embeddings @ emotion_embeddings.T) * (lora_factor if lora else 1)
+        probabilities = torch.softmax(vision_similarities, dim=-1).squeeze().cpu().numpy()
+        pred_label_ = id2label[np.argmax(probabilities)]
+
+        print(f'Utterance X emotion embeddings:\t pred. label: {pred_label}, true label: {true_label}')
+        print(f'Video X Emotion embeddings:\t pred. label: {pred_label_}, true label: {true_label}')
+        print('-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-')
+
+        if i > 10:
+            break
         

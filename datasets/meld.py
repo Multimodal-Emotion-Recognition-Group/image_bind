@@ -78,7 +78,10 @@ class MeldDataset(Dataset):
         # modality_combinations = [[images, ModalityType.VISION, text_tkn, ModalityType.TEXT],
         #                          [images, ModalityType.VISION, label_tkn, ModalityType.TEXT]]
 
-        return images, ModalityType.VISION, text_tkn, ModalityType.TEXT
+        if not self.for_testing:
+            return images, ModalityType.VISION, text_tkn, ModalityType.TEXT
+        else:
+            return images, ModalityType.VISION, text_tkn, ModalityType.TEXT, label
 
     def __len__(self):
         return len(self.split_paths)
