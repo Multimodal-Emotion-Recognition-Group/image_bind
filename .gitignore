@@ -2,7 +2,7 @@
 .vscode
 .DS_Store
 .assets
-.checkpoints
 .datasets
 .idea
+.checkpoints
 lightningj_logs

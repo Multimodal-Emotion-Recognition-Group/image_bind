@@ -12,16 +12,16 @@ from typing import Dict
 
 import torch
 import torch.nn as nn
-from lora__impl__.models.helpers import (EinOpsRearrange, LearnableLogitScaling, Normalize,
+from image_bind.models.helpers import (EinOpsRearrange, LearnableLogitScaling, Normalize,
                             SelectElement, SelectEOSAndProject)
-from lora__impl__.models.multimodal_preprocessors import (AudioPreprocessor,
+from image_bind.models.multimodal_preprocessors import (AudioPreprocessor,
                                              IMUPreprocessor, PadIm2Video,
                                              PatchEmbedGeneric,
                                              RGBDTPreprocessor,
                                              SpatioTemporalPosEmbeddingHelper,
                                              TextPreprocessor,
                                              ThermalPreprocessor)
-from lora__impl__.models.transformer import MultiheadAttention, SimpleTransformer
+from image_bind.models.transformer import MultiheadAttention, SimpleTransformer
 
 ModalityType = SimpleNamespace(
     VISION="vision",

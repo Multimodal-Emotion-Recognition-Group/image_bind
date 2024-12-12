@@ -82,7 +82,7 @@ python-dateutil==2.9.0.post0
 python-dotenv==1.0.1
 python-multipart==0.0.17
 pytorch-lightning==2.4.0
-pytorchvideo @ git+https://github.com/facebookresearch/pytorchvideo@e02c17b480f4b2a70a000df4e1aaf9d45fdaefb5
+pytorchvideo @ git+https://github.com/facebookresearch/pytorchvideo.git@28fe037d212663c6a24f373b94cc5d478c8c1a1d
 pytz==2024.2
 pywin32==308
 PyYAML==6.0.2

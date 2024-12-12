@@ -86,17 +86,22 @@ if __name__ == '__main__':
         utterance_embedding = text_embeddings[len(emotion_labels), :].unsqueeze(0)  # [1, D]
 
         text_similarities = (utterance_embedding @ emotion_embeddings.T) * (lora_factor if lora else 1)
-        probabilities = torch.softmax(text_similarities, dim=-1).squeeze().cpu().numpy()
+        vision_similarities = (vision_embeddings @ emotion_embeddings.T) * (lora_factor if lora else 1)
+
+        # for now just normalize and sum two embeddings before softmax
+        similarities_norm = (text_similarities - text_similarities.mean()) / (text_similarities.std() + 1e-8)
+        vision_similarities_norm = (vision_similarities - vision_similarities.mean()) / (vision_similarities.std() + 1e-8)
+
+        combined_similarities = similarities_norm + vision_similarities_norm
+        probabilities = torch.softmax(combined_similarities, dim=-1).squeeze().cpu().numpy()
         pred_label = id2label[np.argmax(probabilities)]
 
-        vision_similarities = (vision_embeddings @ emotion_embeddings.T) * (lora_factor if lora else 1)
-        probabilities = torch.softmax(vision_similarities, dim=-1).squeeze().cpu().numpy()
-        pred_label_ = id2label[np.argmax(probabilities)]
-
-        print(f'Utterance X emotion embeddings:\t pred. label: {pred_label}, true label: {true_label}')
-        print(f'Video X Emotion embeddings:\t pred. label: {pred_label_}, true label: {true_label}')
+        print(f'(Utterance X emotion) + (Video X Emotion embeddings):\t pred. label: {pred_label}, true label: {true_label}')
         print('-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-')
+        # somehow works on some examples
+        # (Utterance X emotion) + (Video X Emotion embeddings):	 pred. label: sadness, true label: sadness
 
         if i > 10:
             break
-        
+
+# TODO: write F1 func calc to eval model after full-training

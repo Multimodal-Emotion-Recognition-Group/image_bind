@@ -17,7 +17,7 @@ from safetensors.torch import save_file
 from torch import Tensor
 from torch.nn.parameter import Parameter
 
-from models.transformer import SimpleTransformer
+from image_bind.models.transformer import SimpleTransformer
 
 
 def apply_lora_modality_trunks(modality_trunks: Dict[str, SimpleTransformer], rank: int,

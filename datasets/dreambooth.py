@@ -4,8 +4,8 @@ from typing import Optional, Callable
 from sklearn.model_selection import train_test_split
 from torch.utils.data import Dataset
 
-from lora__impl__.models.imagebind_model import ModalityType
-import lora__impl__.data
+from image_bind.models.imagebind_model import ModalityType
+import image_bind.data
 
 
 class DreamBoothDataset(Dataset):

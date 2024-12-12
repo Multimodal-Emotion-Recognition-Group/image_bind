@@ -315,21 +315,9 @@ if __name__ == "__main__":
     train_datasets = []
     test_datasets = []
 
-    # Load datasets
-    if "dreambooth" in args.datasets:
-        from datasets.dreambooth import DreamBoothDataset
-        train_datasets.append(DreamBoothDataset(
-            root_dir=os.path.join(args.datasets_dir, "dreambooth", "dataset"), split="train",
-            transform=ContrastiveTransformations(contrast_transforms,
-                                                 n_views=2 if args.self_contrast else 1)))
-        test_datasets.append(DreamBoothDataset(
-            root_dir=os.path.join(args.datasets_dir, "dreambooth", "dataset"), split="test",
-            transform=ContrastiveTransformations(contrast_transforms,
-                                                 n_views=2 if args.self_contrast else 1)))
-
     # lot's of data (esp. in train and test) don't have audio in .mp4 videos,
     # so audio modality isn't used in MELD for now
-    elif "MELD" in args.datasets:
+    if "MELD" in args.datasets:
         from datasets.meld import MeldDataset
 
         train_datasets.append(MeldDataset('../MELD.Raw/train/train_sent_emo.csv', split='train', get_audio=False,
@@ -360,20 +348,6 @@ if __name__ == "__main__":
         pin_memory=False,
         num_workers=args.num_workers,
     )
-
-    # Visualize some examples
-    # if not args.headless:
-    #     NUM_IMAGES = args.batch_size
-    #     imgs = [torch.stack(train_dataset[idx][0], dim=0) for idx in range(NUM_IMAGES)]
-    #     imgs = torch.stack(imgs, dim=0)
-    #     img_grid = torchvision.utils.make_grid(imgs.reshape(-1, *imgs.shape[2:]), nrow=6, normalize=True, pad_value=0.9)
-    #     img_grid = img_grid.permute(1, 2, 0)
-    #     plt.figure(figsize=(10, 5))
-    #     plt.title(f"Augmented image examples of the available datasets: {args.datasets}")
-    #     plt.imshow(img_grid.cpu())
-    #     plt.axis("off")
-    #     plt.show()
-    #     plt.close()
 
     # Parse indices of layers to apply LoRA
     lora_layer_idxs = {}
