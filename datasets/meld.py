@@ -13,8 +13,7 @@ import random
 import csv
 
 
-
-import image_bind.data
+from image_bind.data import load_and_transform_text, load_and_transform_video_data
 from image_bind.models.imagebind_model import ModalityType
 
 
@@ -66,11 +65,11 @@ class MeldDataset(Dataset):
         text, videop, label = self.split_paths[index]
 
         if not self.for_testing:
-            text_tkn = image_bind.data.load_and_transform_text([label + ': ' + text], self.device)
+            text_tkn = load_and_transform_text([label + ': ' + text], self.device)
         else:
-            text_tkn = image_bind.data.load_and_transform_text([text], self.device)
+            text_tkn = load_and_transform_text([text], self.device)
 
-        images = image_bind.data.load_and_transform_video_data([videop], self.device, clip_duration=2, clips_per_video=3)
+        images = load_and_transform_video_data([videop], self.device, clip_duration=2, clips_per_video=3)
 
         # mel_spt = lora__impl__.data.load_and_transform_audio_data([audiop], self.device)
         #label_tkn = lora__impl__.data.load_and_transform_text([label], self.device)

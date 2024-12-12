@@ -5,8 +5,6 @@ from sklearn.model_selection import train_test_split
 from torch.utils.data import Dataset
 
 from image_bind.models.imagebind_model import ModalityType
-import image_bind.data
-
 
 class DreamBoothDataset(Dataset):
     def __init__(self, root_dir: str, transform: Optional[Callable] = None,

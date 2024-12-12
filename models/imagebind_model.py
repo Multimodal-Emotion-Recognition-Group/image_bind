@@ -12,6 +12,8 @@ from typing import Dict
 
 import torch
 import torch.nn as nn
+
+
 from image_bind.models.helpers import (EinOpsRearrange, LearnableLogitScaling, Normalize,
                             SelectElement, SelectEOSAndProject)
 from image_bind.models.multimodal_preprocessors import (AudioPreprocessor,

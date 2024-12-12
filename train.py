@@ -30,9 +30,9 @@ from torch.utils.data import DataLoader, ConcatDataset
 import torchvision
 from torchvision import transforms
 
-from models import imagebind_model
-from models import lora as LoRA
-from models.imagebind_model import ModalityType, load_module, save_module
+from image_bind.models import imagebind_model
+from image_bind.models import lora as LoRA
+from image_bind.models.imagebind_model import ModalityType, load_module, save_module
 
 logging.basicConfig(level=logging.INFO, force=True)
 
