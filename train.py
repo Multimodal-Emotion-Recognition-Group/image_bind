@@ -222,7 +222,8 @@ def parse_args():
     parser.add_argument("--lora_rank", type=int, default=4, help="Rank of LoRA layers")
     parser.add_argument("--lora_checkpoint_dir", type=str, default="./.checkpoints/lora",
                         help="Directory to save LoRA checkpoint")
-    parser.add_argument("--lora_modality_names", nargs="+", type=str, default=["vision", "text", 'audio'],
+    # meld modalities
+    parser.add_argument("--lora_modality_names", nargs="+", type=str, default=["vision", "text"],
                         choices=["vision", "text", "audio", "thermal", "depth", "imu"],
                         help="Modality names to apply LoRA")
     parser.add_argument("--lora_layer_idxs", nargs="+", type=int,
@@ -320,10 +321,10 @@ if __name__ == "__main__":
     if "MELD" in args.datasets:
         from datasets.meld import MeldDataset
 
-        train_datasets.append(MeldDataset('../MELD.Raw/train/train_sent_emo.csv', split='train', get_audio=False,
-                                          shuffle=True, arbitrary_size=0.05, device=device))
-        test_datasets.append(MeldDataset('../MELD.Raw/dev/dev_sent_emo.csv', split='dev', get_audio=False,
-                                         arbitrary_size=0.1, device=device))
+        train_datasets.append(MeldDataset('../MELD.Raw/train/train_sent_emo.csv', split='train', for_testing=False, get_audio=False,
+                                          shuffle=True, arbitrary_size=1.0, device=device))
+        test_datasets.append(MeldDataset('../MELD.Raw/dev/dev_sent_emo.csv', split='dev', for_testing=False, get_audio=False,
+                                         arbitrary_size=1.0, device=device))
 
     if len(args.datasets) == 1:
         train_dataset = train_datasets[0]
@@ -352,7 +353,9 @@ if __name__ == "__main__":
     # Parse indices of layers to apply LoRA
     lora_layer_idxs = {}
     lora_modality_names = []
+
     modalities = ["vision", "text", "audio", "thermal", "depth", "imu"]
+
     for modality_name in args.lora_modality_names:
         if modality_name in modalities:
             modality_type = getattr(ModalityType, modality_name.upper())
